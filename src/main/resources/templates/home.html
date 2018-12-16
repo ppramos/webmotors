@@ -1,0 +1,695 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<title>POC WebMotors</title>
+<link rel="stylesheet"
+	href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+	integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+	crossorigin="anonymous">
+<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+<script
+	src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+	integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+	crossorigin="anonymous"></script>
+<script
+	src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
+	integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+	crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/2.1.3/mustache.js"></script>
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" integrity="sha384-gfdkjb5BdAXd+lj+gudLWI+BXq4IuLW5IT+brZEZsLFm++aCMlF1V92rMkPaX4PP" crossorigin="anonymous">
+	
+	<style>
+		ul > li {
+			float:left;
+			padding-right: 25px;
+		} 
+		
+		.gray {
+			color: gray;
+		}
+		
+		hr {
+			margin: 10px 0;
+		}
+		
+		.row-template span {
+			font-size: 13px;
+		}
+		
+		.loading {
+		  position: fixed;
+		  z-index: 999;
+		  height: 12em;
+		  width: 12em;
+		  overflow: show;
+		  margin: auto;
+		  top: 0;
+		  left: 0;
+		  bottom: 0;
+		  right: 0;
+		  background: url(/img/loading.gif) no-repeat;
+		  display: none;
+		}
+		
+		
+		
+	</style>
+	
+	<script type="text/javascript">
+		
+		var templateVeiculo = [
+	        '<div class="row-template row col-12 border rounded" style="padding-bottom: 10px; padding-top: 10px; margin-left: 15px; margin-bottom: 10px;">',
+				'<div class="col-5">',
+					'<img src="{{imagem}}" />' ,
+				'</div>',
+				'<div class="col-7">',
+					'<h5>{{nome}}</h5>',
+					'<span>{{descricao}}</span>',
+					'<hr/>',
+					'<h5>R$ {{preco}}</h5>',
+					'<hr/>',
+					'<div class="gray">',
+					'<i class="fas fa-tachometer-alt"></i><span style="padding-left: 5px;">{{quilometragem}}</span>',
+					'<span style="padding-left: 15px;"><i class="far fa-calendar"></i><span style="padding-left: 5px;">{{anoModelo}}</span>',
+					'<span style="padding-left: 15px;"><i class="fas fa-car-alt"></i><span style="padding-left: 5px;">Transmissão {{transmissao}}</span>',
+					'<div><ul style="padding-left: 0;">{{#informacoes}}<li>{{.}}</li>{{/informacoes}}</ul></div>',
+					'<div style="clear: both; padding-top: 5px;"><hr/>',
+					'<div class="row" style="margin-left: 0;"><div class="col-6 text-left" style="padding-left: 0;">{{estadoCidade}}</div><div class="col-6 text-right">{{anunciante}}</div></div>',
+					'</div>',
+					'</div>',
+				'</div>',
+			'</div>'
+	    ].join("\n");
+	
+		function queryParam(param) {
+			var value = $("#" + param).val();
+			if (value) {
+				return "&" + param + "=" + value;
+			}
+			return "";
+		}
+		
+		function queryParamEstadoCidade() {
+			var estado = $('#estadocidade').val();
+			var cidade = $('#cidade').val();
+			if (cidade) {
+				estado += "-" + cidade;
+			}
+			return estado ? "&estadocidade=" + estado : ""; 
+		}
+		
+		function next() {
+			buscar(++page);
+		}
+
+		function prev() {
+			buscar(--page);
+		}
+		
+		function queryCambio() {
+			var manual = $('#input-manual').is(":checked");
+			var automatico = $('#input-automatico').is(":checked");
+			var cambios = [];
+			if (automatico) {
+				cambios.push('automática');
+			}
+			if (manual) {
+				cambios.push('manual');
+			}
+			
+			if (cambios.length > 0) {
+				return '&cambio=' + cambios.join(encodeURIComponent('|'));
+			}
+			return '';
+		}
+		
+		function isNovo() {
+			var novo = $("#input-veiculos-novos").is(":checked");
+			var usado = $("#input-veiculos-usados").is(":checked");
+			return novo && !usado;
+		}
+		
+		function queryTipoVeiculo() {
+			return "tipoveiculo=" + (isNovo() ? "carros-novos" : "carros");
+		}
+		
+		var page = 1;
+		
+		
+		
+		function loadParams(page) {
+			return queryTipoVeiculo()
+				+ queryParam("marca1")
+				+ queryParam("modelo1")
+				+ queryParam("anode")
+				+ queryParam("anoate")
+				+ queryParam("precode")
+				+ queryParam("precoate")
+				+ queryParam("kmde")
+				+ queryParam("kmate")
+				+ queryCambio()
+				+ queryCombustivel()
+				+ queryParamEstadoCidade()
+				+ queryAnunciante()
+				+ "&o=1&qt=36&p=" + page;
+		}
+		
+		function renderModelos(modelos) {
+			renderSelect(modelos, "#modelo1");
+		}
+		
+		function renderCidades(cidades) {
+			renderSelect(cidades, "#cidade");
+		}
+		
+		function renderSelect(collection, id) {
+			if (collection && collection.length > 0) {
+				var $select = $(id);
+				var valueOld = $select.find("option:selected").val();
+				$select.find("option").remove();
+				var $option = $('<option>', {'value': '', 'text': '--'});
+				$select.append($option);
+				
+				for (var i = 0; i < collection.length; i++) {
+					var value = collection[i];
+					var $option = $('<option>', {'value': value, 'text': value});
+					$select.append($option);
+				}
+				$select.find('option[value="'+ valueOld +'"]').attr('selected', 'selected');
+			}	
+		}
+		
+		function queryCombustivel() {
+			var combustiveis = $('#row-combustivel').find('.input-combustivel');
+			var result = [];			
+			for (var i = 0; i < combustiveis.length; i++) {
+				var $input = $(combustiveis[i]);
+				if ($input.is(":checked")) {
+					result.push($input.attr("nome"));
+				}
+			}
+			
+			if (result.length > 0) {
+				return "&combustivel=" + result.join(encodeURIComponent('|'));
+			}
+			return '';
+			
+		}
+		
+		function queryAnunciante() {
+			var anunciantes = $('#row-anunciante').find('.input-anunciante');
+			var result = [];			
+			for (var i = 0; i < anunciantes.length; i++) {
+				var $input = $(anunciantes[i]);
+				if ($input.is(":checked")) {
+					result.push($input.attr("nome"));
+				}
+			}
+			
+			if (result.length > 0) {
+				return "&anunciante=" + result.join(encodeURIComponent('|'));
+			}
+			return '';
+			
+		}
+		
+		function showLoad() {
+			$('.loading').show();
+		}
+		
+		function hideLoad() {
+			$('.loading').hide();
+		}
+		
+		$.ajaxSetup({
+		  beforeSend: function() {
+		     showLoad();
+		  },
+		  complete: function(){
+		     hideLoad();
+		  },
+		  success: function() {}
+		});
+		
+		function buscar(index) {
+			var params = loadParams(index ? index : 1);
+			showLoad();
+			$.ajax({
+				url: "/veiculos/buscar?" + params,
+				method: "GET",
+				dataType: "json",
+				success: function(response) {
+					if (response.veiculos) {
+						var veiculos = response.veiculos;
+						$('.row-template').remove();
+						for (var i = 0; i < veiculos.length; i++) {
+							renderVeiculo(veiculos[i]);
+						} 
+						renderModelos(response.modelos);
+						renderCidades(response.cidades);
+						$(window).scrollTop(0);
+						$('#row-paginacao').show();
+					} else {
+						$('#modal-not-found').modal();
+						$('#row-paginacao').hide();
+					}
+				},
+				error: function(err) {
+					console.log('error');
+					console.log(err);
+				}
+			});
+		}
+		
+		$(document).ready(function() {
+			$("#btn-buscar").click(function() {
+				page = 1;
+				buscar(page);
+			});
+		});
+		
+		function renderVeiculo(data) {
+			var html = Mustache.render(templateVeiculo, data);
+		    $("#lista-veiculos").append(html);
+		}
+		
+	
+	</script>
+	
+</head>
+
+<body>
+	<div class="container-fluid" style="padding: 50px;">
+		<div class="loading"></div>
+		<div class="row">
+			<div class="col-3">
+				
+				<div class="row">
+					<div>Estado</div>
+					<div class="input-group mb-3">
+					  <select class="custom-select" id="estadocidade">
+					    <option value="">--</option>
+					    <option value="alagoas">Alagoas</option>
+						<option value="bahia">Bahia</option>
+						<option value="ceará">Ceará</option>
+						<option value="distrito federal">Distrito Federal</option>
+						<option value="espírito santo">Espírito Santo</option>
+						<option value="goiás">Goiás</option>
+						<option value="mato grosso do sul">Mato Grosso do Sul</option>
+						<option value="minas gerais">Minas Gerais</option>
+						<option value="pará">Pará</option>
+						<option value="paraíba">Paraíba</option>
+						<option value="paraná">Paraná</option>
+						<option value="pernambuco">Pernambuco</option>
+						<option value="piauí">Piauí</option>
+						<option value="rio de janeiro">Rio de Janeiro</option>
+						<option value="rio grande do norte">Rio Grande do Norte</option>
+						<option value="rio grande do sul">Rio Grande do Sul</option>
+						<option value="santa catarina">Santa Catarina</option>
+						<option value="são paulo">São Paulo</option>
+						<option value="sergipe">Sergipe</option></select>
+					  </select>
+					</div>
+				</div>
+
+				<div class="row" style="padding-top: 15px;">
+					<div>
+				      <div class="custom-control custom-checkbox mr-sm-2">
+				        <input type="checkbox" class="custom-control-input" id="input-veiculos-novos">
+				        <label class="custom-control-label" for="input-veiculos-novos">Novos</label>
+				      </div>
+				    </div>
+				    
+				    <div>
+				      <div class="custom-control custom-checkbox mr-sm-2">
+				        <input type="checkbox" class="custom-control-input" id="input-veiculos-usados">
+				        <label class="custom-control-label" for="input-veiculos-usados">Usados</label>
+				      </div>
+				    </div>
+				</div>
+				
+				<div class="row" style="padding-top: 15px;">
+				<div>Marca</div>
+					<div class="input-group mb-3">
+					  <select class="custom-select" id="marca1">
+					    <option value="">--</option>
+					    <option value="CHERY">CHERY</option>
+						<option value="CHEVROLET">CHEVROLET</option>
+						<option value="CITROËN">CITROËN</option>
+						<option value="EFFA">EFFA</option>
+						<option value="FIAT">FIAT</option>
+						<option value="FORD">FORD</option>
+						<option value="HONDA">HONDA</option>
+						<option value="HYUNDAI">HYUNDAI</option>
+						<option value="JAC">JAC</option>
+						<option value="KIA">KIA</option>
+						<option value="LIFAN">LIFAN</option>
+						<option value="NISSAN">NISSAN</option>
+						<option value="PEUGEOT">PEUGEOT</option>
+						<option value="RENAULT">RENAULT</option>
+						<option value="SUZUKI">SUZUKI</option>
+						<option value="TOYOTA">TOYOTA</option>
+						<option value="VOLKSWAGEN">VOLKSWAGEN</option>
+						<option value="CHERY">CHERY</option>
+						<option value="CHEVROLET">CHEVROLET</option>
+						<option value="CITROËN">CITROËN</option>
+						<option value="EFFA">EFFA</option>
+						<option value="FIAT">FIAT</option>
+						<option value="FORD">FORD</option>
+						<option value="HONDA">HONDA</option>
+						<option value="HYUNDAI">HYUNDAI</option>
+						<option value="JAC">JAC</option>
+						<option value="KIA">KIA</option>
+						<option value="LIFAN">LIFAN</option>
+						<option value="NISSAN">NISSAN</option>
+						<option value="PEUGEOT">PEUGEOT</option>
+						<option value="RENAULT">RENAULT</option>
+						<option value="SUZUKI">SUZUKI</option>
+						<option value="TOYOTA">TOYOTA</option>
+						<option value="VOLKSWAGEN">VOLKSWAGEN</option>
+					  </select>
+					</div>
+				</div>
+				
+				<div class="row">
+					<div>Modelo</div>
+					<div class="input-group mb-3">
+					  <select class="custom-select" id="modelo1">
+					    <option value="">--</option>
+					  </select>
+					</div>
+				</div>
+				
+				<div class="row">
+					<div>Cidade</div>
+					<div class="input-group mb-3">
+					  <select class="custom-select" id="cidade">
+					    <option value="">--</option>
+					  </select>
+					</div>
+				</div>
+				
+				<div>
+					<div class="row">
+						<div>Ano</div>
+					</div>				
+					<div class="row">
+						<div>
+						  <select class="custom-select" id="anode">
+						    <option value="">de</option>
+						    <option value="2000">2000</option>
+						    <option value="2001">2001</option>
+						    <option value="2002">2002</option>
+						    <option value="2003">2003</option>
+						    <option value="2004">2004</option>
+						    <option value="2005">2005</option>
+						    <option value="2006">2006</option>
+						    <option value="2007">2007</option>
+						    <option value="2008">2008</option>
+						    <option value="2009">2009</option>
+						    <option value="2010">2010</option>
+						    <option value="2011">2011</option>
+						    <option value="2012">2012</option>
+						    <option value="2013">2013</option>
+						    <option value="2014">2014</option>
+						    <option value="2015">2015</option>
+						    <option value="2016">2016</option>
+						    <option value="2017">2017</option>
+						    <option value="2018">2018</option>
+						  </select>
+						</div>
+						<div style="padding-left: 10px;">
+						  <select class="custom-select" id="anoate">
+						    <option value="">até</option>
+						    <option value="2000">2000</option>
+						    <option value="2001">2001</option>
+						    <option value="2002">2002</option>
+						    <option value="2003">2003</option>
+						    <option value="2004">2004</option>
+						    <option value="2005">2005</option>
+						    <option value="2006">2006</option>
+						    <option value="2007">2007</option>
+						    <option value="2008">2008</option>
+						    <option value="2009">2009</option>
+						    <option value="2010">2010</option>
+						    <option value="2011">2011</option>
+						    <option value="2012">2012</option>
+						    <option value="2013">2013</option>
+						    <option value="2014">2014</option>
+						    <option value="2015">2015</option>
+						    <option value="2016">2016</option>
+						    <option value="2017">2017</option>
+						    <option value="2018">2018</option>
+						  </select>
+						</div>
+					</div>
+				</div>
+				
+				<div style="padding-top: 15px;">
+					<div class="row">
+						<div>Preço</div>
+					</div>
+					<div class="row">
+						<div>
+						  <select class="custom-select" id="precode">
+						    <option value="">de</option>
+						    <option value="10000">10000</option>
+						    <option value="20000">20000</option>
+						    <option value="30000">30000</option>
+						    <option value="40000">40000</option>
+						    <option value="50000">50000</option>
+						    <option value="60000">60000</option>
+						    <option value="70000">70000</option>
+						    <option value="80000">80000</option>
+						    <option value="90000">90000</option>
+						    <option value="100000">100000</option>
+						  </select>
+						</div>
+						<div style="padding-left: 10px;">
+						  <select class="custom-select" id="precoate">
+						    <option value="">até</option>
+						    <option value="10000">10000</option>
+						    <option value="20000">20000</option>
+						    <option value="30000">30000</option>
+						    <option value="40000">40000</option>
+						    <option value="50000">50000</option>
+						    <option value="60000">60000</option>
+						    <option value="70000">70000</option>
+						    <option value="80000">80000</option>
+						    <option value="90000">90000</option>
+						    <option value="100000">100000</option>
+						  </select>
+						</div>
+					</div>
+				</div>
+				
+				<div style="padding-top: 15px;">
+					<div class="row">
+						<div>Quilometragem</div>
+					</div>
+					<div class="row">
+						<div>
+						  <select class="custom-select" id="kmde">
+						    <option value="">de</option>
+						    <option value="10000">10000</option>
+						    <option value="20000">20000</option>
+						    <option value="30000">30000</option>
+						    <option value="40000">40000</option>
+						    <option value="50000">50000</option>
+						    <option value="60000">60000</option>
+						    <option value="70000">70000</option>
+						    <option value="80000">80000</option>
+						    <option value="90000">90000</option>
+						    <option value="100000">100000</option>
+						  </select>
+						</div>
+						<div style="padding-left: 10px;">
+						  <select class="custom-select" id="kmate">
+						    <option value="">até</option>
+						    <option value="10000">10000</option>
+						    <option value="20000">20000</option>
+						    <option value="30000">30000</option>
+						    <option value="40000">40000</option>
+						    <option value="50000">50000</option>
+						    <option value="60000">60000</option>
+						    <option value="70000">70000</option>
+						    <option value="80000">80000</option>
+						    <option value="90000">90000</option>
+						    <option value="100000">100000</option>
+						  </select>
+						</div>
+					</div>
+				</div>
+				
+				<div style="padding-top: 15px;">
+					<div class="row">
+						<div>Transmissão</div>
+					</div>
+					<div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input" id="input-manual">
+					        <label class="custom-control-label" for="input-manual">Manual</label>
+					      </div>
+					    </div>
+					    
+					    <div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input" id="input-automatico">
+					        <label class="custom-control-label" for="input-automatico">Automático</label>
+					      </div>
+					    </div>
+					</div>
+				</div>
+				
+				<div id="row-combustivel" style="padding-top: 15px;">
+					<div class="row">
+						<div>Combustível</div>
+					</div>
+					<div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-combustivel" id="alcool" nome="Álcool">
+					        <label class="custom-control-label" for="alcool">Álcool</label>
+					      </div>
+					    </div>
+				    </div>
+				    
+				    <div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-combustivel" id="diesel" nome="diesel">
+					        <label class="custom-control-label" for="diesel">Diesel</label>
+					      </div>
+					    </div>
+				    </div>
+				    
+				    <div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-combustivel" id="gas-natural" nome="gás natural">
+					        <label class="custom-control-label" for="gas-natural">Gás Natural</label>
+					      </div>
+					    </div>
+				    </div>
+				    
+				    <div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-combustivel" id="gasolina" nome="gasolina">
+					        <label class="custom-control-label" for="gasolina">Gasolina</label>
+					      </div>
+					    </div>
+				    </div>
+
+				    <div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-combustivel" id="gasolina-alcool" nome="gasolina e álcool">
+					        <label class="custom-control-label" for="gasolina-alcool">Gasolina e Álcool</label>
+					      </div>
+					    </div>
+				    </div>
+				    
+				    <div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-combustivel" id="gasolina-alcool-gas" nome="gasolina, álcool e gás natural">
+					        <label class="custom-control-label" for="gasolina-alcool-gas">Gasolina, Álcool e Gás Natural</label>
+					      </div>
+					    </div>
+				    </div>
+				    
+				</div>
+				
+				
+				<div id="row-anunciante" style="padding-top: 15px;">
+					<div class="row">
+						<div>Anunciante</div>
+					</div>
+					<div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-anunciante" id="acessorios-servicos" nome="acessórios e serviços para autos">
+					        <label class="custom-control-label" for="acessorios-servicos">Acessórios e serviços para automóveis</label>
+					      </div>
+					    </div>
+				    </div>
+
+					<div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-anunciante" id="agencias-publicidade" nome="agências de publicidade">
+					        <label class="custom-control-label" for="agencias-publicidade">Agências de publicidade</label>
+					      </div>
+					    </div>
+				    </div>
+
+					<div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-anunciante" id="concessionaria" nome="concessionária">
+					        <label class="custom-control-label" for="concessionaria">Concessionária</label>
+					      </div>
+					    </div>
+				    </div>
+				    
+					<div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-anunciante" id="loja" nome="loja">
+					        <label class="custom-control-label" for="loja">Loja</label>
+					      </div>
+					    </div>
+				    </div>
+				    
+					<div class="row">
+						<div>
+					      <div class="custom-control custom-checkbox mr-sm-2">
+					        <input type="checkbox" class="custom-control-input input-anunciante" id="pessoa-fisica" nome="pessoa física">
+					        <label class="custom-control-label" for="pessoa-fisica">Pessoa física</label>
+					      </div>
+					    </div>
+				    </div>
+				    
+				</div>
+				
+<!-- 				<div style="padding-top: 15px;">
+					<div class="row">
+						<div>Opcionais</div>
+					</div>
+					<div class="row">
+				    </div>
+				</div> -->
+				
+				<div class="row" style="padding-top: 15px">
+					<button id="btn-buscar" type="button" class="btn btn-primary">Pesquisar</button>
+				</div>
+			</div>
+			<div class="col-9">
+			
+				<div id="lista-veiculos" class="row">
+				</div>
+				<div id="row-paginacao" class="col-sm-4 container" style="display: none;">
+				
+					<button id="btn-prev" type="button" onclick="prev(); return false;" class="btn btn-primary">Anterior</button>
+					&nbsp;&nbsp;&nbsp;
+					<button id="btn-next" type="button" onclick="next(); return false;" class="btn btn-primary">Próxima</button>
+				</div>
+			</div>
+		</div>
+		
+		<div id="modal-not-found" class="modal fade bd-example-modal-sm" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
+		  <div class="modal-dialog modal-sm">
+		    <div class="modal-content" style="padding: 50px; white-space: nowrap;">
+		      Nenhum resultado encontrado
+		    </div>
+		  </div>
+		</div>
+		
+	</div>
+	
+</body>
+
+</html>
