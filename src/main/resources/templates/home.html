@@ -156,16 +156,27 @@
 		}
 		
 		function renderModelos(modelos) {
-			renderSelect(modelos, "#modelo1");
+			if ($('#marca1').val()) {
+				renderSelect(modelos, "#modelo1");
+			}
 		}
 		
 		function renderCidades(cidades) {
-			renderSelect(cidades, "#cidade");
+			if ($('#estadocidade').val()) {
+				renderSelect(cidades, "#cidade");
+			}
+		}
+		
+		function clearSelect(id) {
+			var $select = $(id);
+			$select.find("option").remove();
+			var $option = $('<option>', {'value': '', 'text': '--'});
+			$select.append($option);
 		}
 		
 		function renderSelect(collection, id) {
+			var $select = $(id);
 			if (collection && collection.length > 0) {
-				var $select = $(id);
 				var valueOld = $select.find("option:selected").val();
 				$select.find("option").remove();
 				var $option = $('<option>', {'value': '', 'text': '--'});
@@ -177,7 +188,10 @@
 					$select.append($option);
 				}
 				$select.find('option[value="'+ valueOld +'"]').attr('selected', 'selected');
-			}	
+				$select.parents(".row").show();
+			} else {
+				$select.parents(".row").hide();
+			}
 		}
 		
 		function queryCombustivel() {
@@ -267,6 +281,15 @@
 				page = 1;
 				buscar(page);
 			});
+			
+			$("#estadocidade").change(function() {
+				clearSelect("#cidade");
+			});
+			
+			$("#marca1").change(function() {
+				clearSelect("#modelo1");
+			});
+			
 		});
 		
 		function renderVeiculo(data) {
@@ -372,7 +395,7 @@
 					</div>
 				</div>
 				
-				<div class="row">
+				<div class="row" style="display: none;">
 					<div>Modelo</div>
 					<div class="input-group mb-3">
 					  <select class="custom-select" id="modelo1">
@@ -381,7 +404,7 @@
 					</div>
 				</div>
 				
-				<div class="row">
+				<div class="row" style="display: none;">
 					<div>Cidade</div>
 					<div class="input-group mb-3">
 					  <select class="custom-select" id="cidade">
