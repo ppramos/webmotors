@@ -1,1 +1,1 @@
-web: java -jar target/webmotors*.jar
+web: java -Dserver.port=$PORT -jar $JAVA_OPTS target/webmotors*.jar
