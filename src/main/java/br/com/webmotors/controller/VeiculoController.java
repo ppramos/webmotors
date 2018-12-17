@@ -1,15 +1,18 @@
 package br.com.webmotors.controller;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.com.webmotors.builder.URLBusca;
+import br.com.webmotors.model.Veiculo;
 import br.com.webmotors.response.VeiculoResponse;
 import br.com.webmotors.service.VeiculoService;
 import br.com.webmotors.service.config.VeiculoServiceConfig;
@@ -73,5 +76,11 @@ public class VeiculoController {
 		VeiculoResponse veiculoResponse = veiculoService.getVeiculoResponse(url);
 		return ResponseEntity.ok(veiculoResponse);
 	}
+	
+	@GetMapping("/all/{pages}")
+	public List<Veiculo> findAll(@PathVariable Integer pages) throws IOException {
+		return veiculoService.findAll(pages);
+	}
+	
 	
 }
