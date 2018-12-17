@@ -1,18 +1,24 @@
 package br.com.webmotors.service;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import br.com.webmotors.builder.URLBusca;
 import br.com.webmotors.model.Veiculo;
@@ -47,22 +53,27 @@ public class VeiculoService {
 		return createResponse(response);
 	}
 	
-	public List<Veiculo> findAll(Integer pages) throws IOException {
-		
+	@Async("threadPoolTaskExecutor")
+	public void findAll() throws IOException {
+		File file = new File("c:\\temp\\result.json");
 		List<Veiculo> listaVeiculos = new ArrayList<>();
 		List<Veiculo> result = new ArrayList<>();
 		Integer page = 0;
-		while (listaVeiculos != null && (pages == null || page < pages)) {
+		while (listaVeiculos != null) {
 			String url = createUrlByPage(++page);
 			logger.info("Busca em {}", url);
 			Response response = doGet(url); 
 			JSONObject jObject = new JSONObject(response.body().string());
 			listaVeiculos = findVeiculos(jObject);
+			
+			ObjectMapper mapper = new ObjectMapper();
 			if (CollectionUtils.isNotEmpty(listaVeiculos)) {
 				result.addAll(listaVeiculos);
 			}
+			for (Veiculo v: result) {
+				FileUtils.writeStringToFile(file, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(v), true);
+			}
 		}
-		return result;
 		
 	}
 	

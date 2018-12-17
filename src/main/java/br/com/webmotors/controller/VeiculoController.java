@@ -78,8 +78,9 @@ public class VeiculoController {
 	}
 	
 	@GetMapping("/all")
-	public List<Veiculo> findAll(@RequestParam(required = false) Integer pages) throws IOException {
-		return veiculoService.findAll(pages);
+	public List<Veiculo> findAll() throws IOException {
+		veiculoService.findAll();
+		return null;
 	}
 	
 	
