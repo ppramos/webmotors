@@ -71,6 +71,7 @@ public class VeiculoService {
 				.tipoveiculo("carros")
 				.o("1")
 				.p(String.valueOf(page))
+				.qt("36")
 				.isAjax("true")
 				.build();
 		return urlBusca.build(veiculoServiceConfig.getUrl());
