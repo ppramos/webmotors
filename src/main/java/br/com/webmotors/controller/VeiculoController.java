@@ -77,8 +77,8 @@ public class VeiculoController {
 		return ResponseEntity.ok(veiculoResponse);
 	}
 	
-	@GetMapping("/all/{pages}")
-	public List<Veiculo> findAll(@PathVariable Integer pages) throws IOException {
+	@GetMapping("/all")
+	public List<Veiculo> findAll(@RequestParam(required = false) Integer pages) throws IOException {
 		return veiculoService.findAll(pages);
 	}
 	
